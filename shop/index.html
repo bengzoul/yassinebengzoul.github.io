@@ -240,12 +240,78 @@ function openCustomer(id){
 // ---------- الفاتورة ----------
 function invText(b){const c=S.customers.find(x=>x.id===b.cid)||{name:''};
  return [`🧵 ${S.settings.shop||'فاتورة'}`,`التاريخ: ${dstr(b.date)}`,`الزبون: ${c.name}`,'',...b.items.map(i=>`• ${i.name} × ${i.qty} ${i.unit||''} = ${money(i.price*i.qty)}`),'',`المجموع: ${money(b.total)}`,`المدفوع: ${money(b.paid)}`,b.total-b.paid>0.001?`الباقي: ${money(b.total-b.paid)}`:'✓ خالص','شكرا لثقتكم'].join('\n')}
+const invNo=b=>b.no||(S.bills.slice().sort((x,y)=>x.date-y.date).indexOf(b)+1);
+function invCanvas(b){
+ const c=S.customers.find(x=>x.id===b.cid)||{name:'',phone:''},st=S.settings,K=2,W=794,rowH=46;
+ const H=Math.max(1123,420+b.items.length*rowH+300);
+ const cv=document.createElement('canvas');cv.width=W*K;cv.height=H*K;const x=cv.getContext('2d');x.scale(K,K);x.direction='rtl';
+ const F=(w,z)=>x.font=`${w} ${z}px system-ui,"Segoe UI",Tahoma,Arial,sans-serif`;
+ const T=(t,px,py,al,col,w,z)=>{F(w||400,z||20);x.fillStyle=col||'#1f2937';x.textAlign=al||'right';x.fillText(t,px,py)};
+ const RR=(px,py,w,h,r,fill)=>{x.fillStyle=fill;x.beginPath();x.roundRect?x.roundRect(px,py,w,h,r):x.rect(px,py,w,h);x.fill()};
+ const cut=(t,max,w,z)=>{F(w,z);t=String(t);if(x.measureText(t).width<=max)return t;while(t.length>1&&x.measureText(t+'…').width>max)t=t.slice(0,-1);return t+'…'};
+ const cur=st.cur||'درهم',M=40,R=W-M;
+ x.fillStyle='#fff';x.fillRect(0,0,W,H);
+ // الرأس
+ x.fillStyle='#7c3aed';x.fillRect(0,0,W,150);
+ T(st.shop||'محل الخياطة',R,70,'right','#fff',800,36);
+ if(st.phone)T('☎ '+st.phone,R,112,'right','#ddd6fe',400,20);
+ T('فاتورة',M,66,'left','#fff',800,34);
+ T('رقم '+invNo(b),M,106,'left','#ddd6fe',600,20);
+ // الزبون والتاريخ
+ RR(M,175,W-2*M,86,14,'#f5f3ff');
+ T('الزبون',R-18,206,'right','#6b7280',400,16);T(c.name||'—',R-18,240,'right','#1f2937',800,26);
+ T('التاريخ',M+310,206,'right','#6b7280',400,16);T(dstr(b.date),M+310,240,'right','#1f2937',700,22);
+ if(c.phone)T(c.phone,M+18,240,'left','#6b7280',400,18);
+ // رأس الجدول
+ let y=290;RR(M,y,W-2*M,46,10,'#7c3aed');
+ const cx={q:360,p:250,t:130};
+ T('المنتج',R-14,y+31,'right','#fff',700,19);T('الكمية',cx.q,y+31,'center','#fff',700,19);T('السعر',cx.p,y+31,'center','#fff',700,19);T('المجموع',cx.t,y+31,'center','#fff',700,19);
+ y+=46;
+ b.items.forEach((i,n)=>{if(n%2===0)RR(M,y,W-2*M,rowH,0,'#faf9ff');
+  T(cut(i.name,330,600,20),R-14,y+31,'right','#1f2937',600,20);
+  T(fmt(i.qty)+' '+(i.unit||''),cx.q,y+31,'center','#374151',400,19);
+  T(fmt(i.price),cx.p,y+31,'center','#374151',400,19);
+  T(fmt(i.price*i.qty),cx.t,y+31,'center','#1f2937',700,20);
+  y+=rowH});
+ x.fillStyle='#e5e7eb';x.fillRect(M,y,W-2*M,2);y+=30;
+ // المجموع
+ const rem=b.total-b.paid,lineR=(l,v,col,w)=>{T(l,R-14,y,'right','#6b7280',500,20);T(v+' '+cur,M+14,y,'left',col||'#1f2937',w||700,22);y+=40};
+ lineR('المجموع',fmt(b.total),'#1f2937',700);
+ lineR('المدفوع',fmt(b.paid),'#16a34a',700);
+ y+=6;
+ if(rem>0.001){RR(M,y-4,W-2*M,70,14,'#fee2e2');T('الباقي (كريدي)',R-18,y+40,'right','#dc2626',700,24);T(fmt(rem)+' '+cur,M+18,y+42,'left','#dc2626',800,30);y+=70;
+  if(b.due){y+=26;T('موعد دفع الباقي: '+dstr(b.due),R-14,y,'right','#6b7280',500,19);y+=10}}
+ else{RR(M,y-4,W-2*M,70,14,'#dcfce7');T('✓ خالص',R-18,y+42,'right','#16a34a',800,28);T(fmt(b.total)+' '+cur,M+18,y+42,'left','#16a34a',800,28);y+=70}
+ // التذييل
+ T('شكرا لثقتكم 🧵',W/2,H-56,'center','#7c3aed',700,22);
+ x.fillStyle='#e5e7eb';x.fillRect(M,H-90,W-2*M,2);
+ return cv;
+}
+function pdfFromCanvas(cv){
+ const jpg=Uint8Array.from(atob(cv.toDataURL('image/jpeg',.92).split(',')[1]),ch=>ch.charCodeAt(0));
+ const pw=595.28,ph=Math.round(pw*cv.height/cv.width*100)/100,enc=new TextEncoder(),parts=[],offs=[];let len=0;
+ const push=v=>{const u=typeof v==='string'?enc.encode(v):v;parts.push(u);len+=u.length};
+ const obj=(n,head,stream)=>{offs[n]=len;push(`${n} 0 obj\n${head}\n`);if(stream){push('stream\n');push(stream);push('\nendstream\n')}push('endobj\n')};
+ push('%PDF-1.4\n');
+ obj(1,'<</Type/Catalog/Pages 2 0 R>>');
+ obj(2,'<</Type/Pages/Kids[3 0 R]/Count 1>>');
+ obj(3,`<</Type/Page/Parent 2 0 R/MediaBox[0 0 ${pw} ${ph}]/Resources<</XObject<</Im0 4 0 R>>>>/Contents 5 0 R>>`);
+ obj(4,`<</Type/XObject/Subtype/Image/Width ${cv.width}/Height ${cv.height}/ColorSpace/DeviceRGB/BitsPerComponent 8/Filter/DCTDecode/Length ${jpg.length}>>`,jpg);
+ const cs=`q ${pw} 0 0 ${ph} 0 0 cm /Im0 Do Q`;obj(5,`<</Length ${cs.length}>>`,cs);
+ const xr=len;push('xref\n0 6\n0000000000 65535 f \n');for(let i=1;i<=5;i++)push(String(offs[i]).padStart(10,'0')+' 00000 n \n');
+ push(`trailer\n<</Size 6/Root 1 0 R>>\nstartxref\n${xr}\n%%EOF`);
+ const out=new Uint8Array(len);let p=0;parts.forEach(u=>{out.set(u,p);p+=u.length});return out;
+}
 function openInvoice(b){
- const c=S.customers.find(x=>x.id===b.cid)||{name:'',phone:''},t=invText(b);
- const o=overlay('الفاتورة',`<div class="card inv printme"><div class="name" style="text-align:center;font-size:22px">${esc(S.settings.shop||'فاتورة')}</div><div class="muted" style="text-align:center">${esc(S.settings.phone||'')}</div><p>التاريخ: ${dstr(b.date)}<br>الزبون: <b>${esc(c.name)}</b></p><table>${b.items.map(i=>`<tr><td>${esc(i.name)}</td><td>${i.qty} ${esc(i.unit||'')}</td><td>${fmt(i.price)}</td><td><b>${fmt(i.price*i.qty)}</b></td></tr>`).join('')}</table><p class="total" style="text-align:center">${money(b.total)}</p><p>المدفوع: ${money(b.paid)}<br>${b.total-b.paid>0.001?`<b style="color:var(--red)">الباقي: ${money(b.total-b.paid)}</b>`:'<b style="color:var(--grn)">خالص ✓</b>'}</p></div>
- <div class="row wrap noprint"><a class="btn grn grow" target="_blank" rel="noopener" href="${wa(c.phone,t)}">💬 واتساب</a><button class="sec grow" id="cp">📋 نسخ</button>${navigator.share?'<button class="sec grow" id="sh">📤 مشاركة</button>':''}<button class="sec grow" id="pr">🖨️ طباعة</button></div>`);
+ const c=S.customers.find(x=>x.id===b.cid)||{name:'',phone:''},t=invText(b),cv=invCanvas(b);
+ const file=new File([pdfFromCanvas(cv)],`facture-${invNo(b)}-${c.name||''}.pdf`.replace(/\s+/g,'-'),{type:'application/pdf'});
+ const o=overlay('الفاتورة',`<img class="printme" src="${cv.toDataURL('image/jpeg',.9)}" style="width:100%;border-radius:12px;box-shadow:0 1px 6px #0003;margin-bottom:12px">
+ <button class="big grn noprint" id="pdf">📄 إرسال الفاتورة PDF</button>
+ <div class="row wrap noprint" style="margin-top:10px"><a class="btn sec grow" target="_blank" rel="noopener" href="${wa(c.phone,t)}">💬 نص واتساب</a><button class="sec grow" id="cp">📋 نسخ</button><button class="sec grow" id="pr">🖨️ طباعة</button></div>`);
+ o.querySelector('#pdf').onclick=async()=>{
+  try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file]});return}}catch(e){if(e.name==='AbortError')return}
+  try{const a=document.createElement('a');a.href=URL.createObjectURL(file);a.download=file.name;a.click();toast('تم تحميل ملف PDF')}catch(e){toast('تعذر إنشاء الملف')}};
  o.querySelector('#cp').onclick=()=>copy(t);o.querySelector('#pr').onclick=()=>window.print();
- const sh=o.querySelector('#sh');if(sh)sh.onclick=()=>navigator.share({text:t}).catch(()=>{});
 }
 
 // ---------- فاتورة جديدة ----------
@@ -288,7 +354,8 @@ function openBill(cid,after){
   o.querySelector('#sv').onclick=async()=>{
    keep();if(!cust)return toast('اختر الزبون أولا');if(!cart.length)return toast('أضف منتجا');
    const pd=pay==='full'?total:pay==='credit'?0:Math.min(num(pa),total);
-   const b={id:uid(),cid:cust,date:Date.now(),items:cart,total,paid:pd,paid0:pd,due:pd<total&&due?new Date(due+'T00:00').getTime():null};
+   const no=S.settings.nextNo||S.bills.length+1;S.settings.nextNo=no+1;
+   const b={id:uid(),no,cid:cust,date:Date.now(),items:cart,total,paid:pd,paid0:pd,due:pd<total&&due?new Date(due+'T00:00').getTime():null};
    cart.forEach(i=>{const p=S.products.find(x=>x.id===i.pid);if(p&&p.stock!=null)p.stock=Math.round((p.stock-i.qty)*100)/100});
    S.bills.push(b);await save();o.close();after&&after();toast('✓ تم حفظ الفاتورة');openInvoice(b)};
  };draw();
