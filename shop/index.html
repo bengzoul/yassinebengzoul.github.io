@@ -116,6 +116,11 @@ async function scan(cb){
  (async()=>{while(run){try{const r=await det.detect(v);if(r[0]){stop();o.close();cb(r[0].rawValue);return}}catch(e){}await new Promise(r=>setTimeout(r,300))}})();
 }
 
+async function saveFile(file){
+ try{const d=window.claude&&claude.use?await claude.use('downloads'):null;if(d){await d.save({filename:file.name,data:file});return 'ok'}}catch(e){if(e&&e.code==='declined')return 'cancel'}
+ try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file]});return 'ok'}}catch(e){if(e&&e.name==='AbortError')return 'cancel'}
+ try{const a=document.createElement('a');a.href=URL.createObjectURL(file);a.download=file.name;a.click();return 'dl'}catch(e){return 'fail'}
+}
 // ---------- الإحصائيات ----------
 function stats(from,to){let sales=0,profit=0,cash=0,credit=0,n=0,prod={};
  S.bills.filter(b=>b.date>=from&&b.date<to).forEach(b=>{n++;sales+=b.total;b.items.forEach(i=>{profit+=(i.price-(i.cost||0))*i.qty;prod[i.name]=(prod[i.name]||0)+i.qty});cash+=paid0(b);credit+=b.total-paid0(b)});
@@ -304,13 +309,11 @@ function pdfFromCanvas(cv){
 }
 function openInvoice(b){
  const c=S.customers.find(x=>x.id===b.cid)||{name:'',phone:''},t=invText(b),cv=invCanvas(b);
- const file=new File([pdfFromCanvas(cv)],`facture-${invNo(b)}-${c.name||''}.pdf`.replace(/\s+/g,'-'),{type:'application/pdf'});
+ const file=new File([pdfFromCanvas(cv)],`facture-${invNo(b)}.pdf`,{type:'application/pdf'});
  const o=overlay('الفاتورة',`<img class="printme" src="${cv.toDataURL('image/jpeg',.9)}" style="width:100%;border-radius:12px;box-shadow:0 1px 6px #0003;margin-bottom:12px">
  <button class="big grn noprint" id="pdf">📄 إرسال الفاتورة PDF</button>
  <div class="row wrap noprint" style="margin-top:10px"><a class="btn sec grow" target="_blank" rel="noopener" href="${wa(c.phone,t)}">💬 نص واتساب</a><button class="sec grow" id="cp">📋 نسخ</button><button class="sec grow" id="pr">🖨️ طباعة</button></div>`);
- o.querySelector('#pdf').onclick=async()=>{
-  try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file]});return}}catch(e){if(e.name==='AbortError')return}
-  try{const a=document.createElement('a');a.href=URL.createObjectURL(file);a.download=file.name;a.click();toast('تم تحميل ملف PDF')}catch(e){toast('تعذر إنشاء الملف')}};
+ o.querySelector('#pdf').onclick=async()=>{const r=await saveFile(file);if(r==='dl')toast('تم تحميل ملف PDF');else if(r==='fail')toast('تعذر إنشاء الملف')};
  o.querySelector('#cp').onclick=()=>copy(t);o.querySelector('#pr').onclick=()=>window.print();
 }
 
@@ -395,9 +398,7 @@ function openBackup(){
  <button class="big" id="sh">📤 حفظ في الملفات / iCloud / واتساب</button><br><button class="big sec" id="cp">📋 نسخ البيانات كنص</button><p class="muted">اختر "حفظ في الملفات" ثم iCloud Drive أو Google Drive أو أرسلها لنفسك. إن لم تعمل استعمل النسخ كنص والصقه في الملاحظات.</p></div>
  <div class="card"><b>استرجاع نسخة</b><br><br><input type="file" id="f" accept=".json,application/json"><label>أو الصق النص هنا</label><textarea id="tx" rows="3"></textarea><br><button class="big sec" id="im">⬆️ استرجاع من النص</button></div>`);
  const j=()=>JSON.stringify(S);
- o.querySelector('#sh').onclick=async()=>{const f=new File([j()],'sauvegarde-'+ymd(Date.now())+'.json',{type:'application/json'});
-  try{if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f]});await markBackup();return}}catch(e){if(e.name==='AbortError')return}
-  try{const a=document.createElement('a');a.href=URL.createObjectURL(f);a.download=f.name;a.click();await markBackup();toast('تم الحفظ. إن لم يظهر الملف استعمل النسخ كنص')}catch(e){toast('استعمل النسخ كنص')}};
+ o.querySelector('#sh').onclick=async()=>{const f=new File([j()],'sauvegarde-'+ymd(Date.now())+'.json',{type:'application/json'});const r=await saveFile(f);if(r==='ok'||r==='dl'){await markBackup();if(r==='dl')toast('تم الحفظ. إن لم يظهر الملف استعمل النسخ كنص')}else if(r==='fail')toast('استعمل النسخ كنص')};
  o.querySelector('#cp').onclick=async()=>{try{await navigator.clipboard.writeText(j());await markBackup();toast('✓ تم النسخ، الصقه في الملاحظات')}catch(e){const t=o.querySelector('#tx');t.value=j();t.select();toast('حدد النص وانسخه')}};
  o.querySelector('#f').onchange=async e=>{if(e.target.files[0])restore(await e.target.files[0].text(),o)};
  o.querySelector('#im').onclick=()=>restore(o.querySelector('#tx').value,o);
