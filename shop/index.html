@@ -246,8 +246,10 @@ function openCustomer(id){
 function invText(b){const c=S.customers.find(x=>x.id===b.cid)||{name:''};
  return [`🧵 ${S.settings.shop||'فاتورة'}`,`التاريخ: ${dstr(b.date)}`,`الزبون: ${c.name}`,'',...b.items.map(i=>`• ${i.name} × ${i.qty} ${i.unit||''} = ${money(i.price*i.qty)}`),'',`المجموع: ${money(b.total)}`,`المدفوع: ${money(b.paid)}`,b.total-b.paid>0.001?`الباقي: ${money(b.total-b.paid)}`:'✓ خالص','شكرا لثقتكم'].join('\n')}
 const invNo=b=>b.no||(S.bills.slice().sort((x,y)=>x.date-y.date).indexOf(b)+1);
-function invCanvas(b){
- const c=S.customers.find(x=>x.id===b.cid)||{name:'',phone:''},st=S.settings,K=2,W=794,rowH=46;
+async function invCanvas(b){
+ const c=S.customers.find(x=>x.id===b.cid)||{name:'',phone:''},st=S.settings,K=2,W=794;
+ const pimg=await Promise.all(b.items.map(i=>new Promise(r=>{const p=S.products.find(z=>z.id===i.pid);if(!p||!p.photo)return r(null);const im=new Image();im.onload=()=>r(im);im.onerror=()=>r(null);im.src=p.photo})));
+ const anyImg=pimg.some(Boolean),rowH=anyImg?66:46;
  const H=Math.max(1123,420+b.items.length*rowH+300);
  const cv=document.createElement('canvas');cv.width=W*K;cv.height=H*K;const x=cv.getContext('2d');x.scale(K,K);x.direction='rtl';
  const F=(w,z)=>x.font=`${w} ${z}px system-ui,"Segoe UI",Tahoma,Arial,sans-serif`;
@@ -273,10 +275,13 @@ function invCanvas(b){
  T('المنتج',R-14,y+31,'right','#fff',700,19);T('الكمية',cx.q,y+31,'center','#fff',700,19);T('السعر',cx.p,y+31,'center','#fff',700,19);T('المجموع',cx.t,y+31,'center','#fff',700,19);
  y+=46;
  b.items.forEach((i,n)=>{if(n%2===0)RR(M,y,W-2*M,rowH,0,'#faf9ff');
-  T(cut(i.name,330,600,20),R-14,y+31,'right','#1f2937',600,20);
-  T(fmt(i.qty)+' '+(i.unit||''),cx.q,y+31,'center','#374151',400,19);
-  T(fmt(i.price),cx.p,y+31,'center','#374151',400,19);
-  T(fmt(i.price*i.qty),cx.t,y+31,'center','#1f2937',700,20);
+  const mid=y+rowH/2+7,tx=anyImg?R-14-62:R-14;
+  if(anyImg){const im=pimg[n],ts=52,tx0=R-14-ts,ty=y+(rowH-ts)/2;x.save();x.beginPath();x.roundRect?x.roundRect(tx0,ty,ts,ts,8):x.rect(tx0,ty,ts,ts);x.clip();
+   if(im){const m=Math.min(im.width,im.height),sx=(im.width-m)/2,sy=(im.height-m)/2;x.drawImage(im,sx,sy,m,m,tx0,ty,ts,ts)}else{x.fillStyle='#ede9fe';x.fillRect(tx0,ty,ts,ts)}x.restore()}
+  T(cut(i.name,anyImg?280:330,600,20),tx,mid,'right','#1f2937',600,20);
+  T(fmt(i.qty)+' '+(i.unit||''),cx.q,mid,'center','#374151',400,19);
+  T(fmt(i.price),cx.p,mid,'center','#374151',400,19);
+  T(fmt(i.price*i.qty),cx.t,mid,'center','#1f2937',700,20);
   y+=rowH});
  x.fillStyle='#e5e7eb';x.fillRect(M,y,W-2*M,2);y+=30;
  // المجموع
@@ -307,8 +312,8 @@ function pdfFromCanvas(cv){
  push(`trailer\n<</Size 6/Root 1 0 R>>\nstartxref\n${xr}\n%%EOF`);
  const out=new Uint8Array(len);let p=0;parts.forEach(u=>{out.set(u,p);p+=u.length});return out;
 }
-function openInvoice(b){
- const c=S.customers.find(x=>x.id===b.cid)||{name:'',phone:''},t=invText(b),cv=invCanvas(b);
+async function openInvoice(b){
+ const c=S.customers.find(x=>x.id===b.cid)||{name:'',phone:''},t=invText(b),cv=await invCanvas(b);
  const file=new File([pdfFromCanvas(cv)],`facture-${invNo(b)}.pdf`,{type:'application/pdf'});
  const o=overlay('الفاتورة',`<img class="printme" src="${cv.toDataURL('image/jpeg',.9)}" style="width:100%;border-radius:12px;box-shadow:0 1px 6px #0003;margin-bottom:12px">
  <button class="big grn noprint" id="pdf">📄 إرسال الفاتورة PDF</button>
