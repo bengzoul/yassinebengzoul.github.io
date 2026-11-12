@@ -223,7 +223,7 @@ function openCustomer(id){
  const c=S.customers.find(x=>x.id===id);const o=overlay(esc(c.name),'',render);
  const draw=()=>{
   const bills=S.bills.filter(b=>b.cid===id).sort((a,b)=>b.date-a.date),ow=owed(id),all=bills.reduce((a,b)=>a+b.total,0);
-  const rem=`السلام عليكم ${c.name}، نذكرك أن عندك كريدي ${money(ow)} عند ${S.settings.shop||'المحل'}. شكرا لك.`;
+  const rem=remText(c);
   o.querySelector('main').innerHTML=`
   <div class="grid"><div class="card"><span class="muted">مجموع المشتريات</span><b>${money(all)}</b></div><div class="card" style="background:${ow>0.001?'var(--redl)':'var(--grnl)'}"><span class="muted">${ow>0.001?'الكريدي (الباقي)':'الحالة'}</span><b style="color:${ow>0.001?'var(--red)':'var(--grn)'}">${ow>0.001?money(ow):'خالص ✓'}</b></div></div>
   <div class="row wrap"><button class="grow" id="nb">＋ فاتورة جديدة</button>${ow>0.001?'<button class="grow grn" id="pay">💵 دفع</button>':''}<button class="sec" id="ed">✏️</button></div>
@@ -243,6 +243,13 @@ function openCustomer(id){
 }
 
 // ---------- الفاتورة ----------
+function remText(c){
+ const st=S.settings,bl=S.bills.filter(b=>b.cid===c.id&&b.total-b.paid>0.001).sort((x,y)=>x.date-y.date),tot=bl.reduce((a,b)=>a+b.total-b.paid,0),t0=day0(Date.now());
+ const line=(b,i)=>{const names=b.items.slice(0,3).map(x=>x.name).join('، ')+(b.items.length>3?'...':''),late=b.due&&b.due<t0;
+  return `${i+1}. ${dstr(b.date)}: ${names}\n    الباقي ${money(b.total-b.paid)}${b.paid>0?' (من '+money(b.total)+')':''}${b.due?'\n    '+(late?'⏰ فات وقت الأداء ('+dstr(b.due)+')':'📅 وقت الأداء: '+dstr(b.due)):''}`};
+ return [`السلام عليكم ${c.name} 👋`,`معاك ${st.shop||'المحل'}.`,'','غير تذكير بسيط على الكريدي لي عندك عندنا 🧾','',
+  '📋 الفواتير لي باقيين:',...bl.slice(0,8).map(line),bl.length>8?`و ${bl.length-8} فواتير أخرى`:null,'',
+  `💰 المجموع لي باقي: ${money(tot)}`,'','المرجو تدوز للمحل فأقرب وقت باش نسوّيو الحساب.','إلا كنتي خلصتي ديجا، تجاهل هاد الرسالة 🙏','','بارك الله فيك، شكرا بزاف 🌷',st.phone?'📞 '+st.phone:null].filter(x=>x!==null).join('\n')}
 function invText(b){const c=S.customers.find(x=>x.id===b.cid)||{name:''};
  return [`🧵 ${S.settings.shop||'فاتورة'}`,`التاريخ: ${dstr(b.date)}`,`الزبون: ${c.name}`,'',...b.items.map(i=>`• ${i.name} × ${i.qty} ${i.unit||''} = ${money(i.price*i.qty)}`),'',`المجموع: ${money(b.total)}`,`المدفوع: ${money(b.paid)}`,b.total-b.paid>0.001?`الباقي: ${money(b.total-b.paid)}`:'✓ خالص','شكرا لثقتكم'].join('\n')}
 const invNo=b=>b.no||(S.bills.slice().sort((x,y)=>x.date-y.date).indexOf(b)+1);
