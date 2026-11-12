@@ -245,11 +245,10 @@ function openCustomer(id){
 // ---------- الفاتورة ----------
 function remText(c){
  const st=S.settings,bl=S.bills.filter(b=>b.cid===c.id&&b.total-b.paid>0.001).sort((x,y)=>x.date-y.date),tot=bl.reduce((a,b)=>a+b.total-b.paid,0),t0=day0(Date.now());
- const line=(b,i)=>{const names=b.items.slice(0,3).map(x=>x.name).join('، ')+(b.items.length>3?'...':''),late=b.due&&b.due<t0;
-  return `${i+1}. ${dstr(b.date)}: ${names}\n    الباقي ${money(b.total-b.paid)}${b.paid>0?' (من '+money(b.total)+')':''}${b.due?'\n    '+(late?'⏰ فات وقت الأداء ('+dstr(b.due)+')':'📅 وقت الأداء: '+dstr(b.due)):''}`};
- return [`السلام عليكم ${c.name} 👋`,`معاك ${st.shop||'المحل'}.`,'','غير تذكير بسيط على الكريدي لي عندك عندنا 🧾','',
-  '📋 الفواتير لي باقيين:',...bl.slice(0,8).map(line),bl.length>8?`و ${bl.length-8} فواتير أخرى`:null,'',
-  `💰 المجموع لي باقي: ${money(tot)}`,'','المرجو تدوز للمحل فأقرب وقت باش نسوّيو الحساب.','إلا كنتي خلصتي ديجا، تجاهل هاد الرسالة 🙏','','بارك الله فيك، شكرا بزاف 🌷',st.phone?'📞 '+st.phone:null].filter(x=>x!==null).join('\n')}
+ const card=b=>{const names=b.items.slice(0,3).map(x=>x.name).join('، ')+(b.items.length>3?'...':''),late=b.due&&b.due<t0;
+  return [`🔹 فاتورة ${dstr(b.date)}`,`🛍 ${names}`,b.paid>0?`🧾 المجموع: ${money(b.total)}`:null,b.paid>0?`✅ المدفوع: ${money(b.paid)}`:null,`💵 الباقي: ${money(b.total-b.paid)}`,b.due?(late?`⏰ فات الأجل: ${dstr(b.due)}`:`📅 آخر أجل: ${dstr(b.due)}`):null].filter(x=>x!==null).join('\n')};
+ const L=[`السلام عليكم ${c.name} 👋`,`معاك ${st.shop||'المحل'}.`,'','غير تذكير بسيط على الكريدي لي عندك عندنا 🧾','',...bl.slice(0,8).map(b=>card(b)+'\n'),bl.length>8?`و ${bl.length-8} فواتير أخرى\n`:null,'━━━━━━━━━━',`💰 المجموع لي باقي: ${money(tot)}`,'━━━━━━━━━━','','المرجو تدوز للمحل فأقرب وقت باش نسوّيو الحساب.','بارك الله فيك، شكرا بزاف 🌷',st.phone?`📞 ${st.phone}`:null].filter(x=>x!==null);
+ return L.join('\n').split('\n').map(l=>l?'\u200F'+l:l).join('\n')}
 function invText(b){const c=S.customers.find(x=>x.id===b.cid)||{name:''};
  return [`🧵 ${S.settings.shop||'فاتورة'}`,`التاريخ: ${dstr(b.date)}`,`الزبون: ${c.name}`,'',...b.items.map(i=>`• ${i.name} × ${i.qty} ${i.unit||''} = ${money(i.price*i.qty)}`),'',`المجموع: ${money(b.total)}`,`المدفوع: ${money(b.paid)}`,b.total-b.paid>0.001?`الباقي: ${money(b.total-b.paid)}`:'✓ خالص','شكرا لثقتكم'].join('\n')}
 const invNo=b=>b.no||(S.bills.slice().sort((x,y)=>x.date-y.date).indexOf(b)+1);
