@@ -15,11 +15,14 @@
 <style>
 :root{--p:#7c3aed;--pl:#ede9fe;--bg:#f5f3ff;--card:#fff;--t:#1f2937;--m:#6b7280;--red:#dc2626;--redl:#fee2e2;--grn:#16a34a;--grnl:#dcfce7;--org:#d97706;--orgl:#fef3c7;--b:#e5e7eb}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-body{margin:0;background:var(--bg);font-family:system-ui,"Segoe UI",Tahoma,Arial,sans-serif;color:var(--t);font-size:18px;padding-block:0 96px}
-body::before{content:'';position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--p);z-index:30}
-header{background:var(--p);color:#fff;padding:14px max(16px,env(safe-area-inset-left,0px));position:sticky;top:env(safe-area-inset-top,0px);z-index:5;display:flex;justify-content:space-between;align-items:center}
+body{margin:0;background:var(--bg);font-family:system-ui,"Segoe UI",Tahoma,Arial,sans-serif;color:var(--t);font-size:18px;height:100%;overflow:hidden}
+html{height:100%;overflow:hidden}
+#shell{position:fixed;inset:0;display:flex;flex-direction:column;background:var(--bg)}
+#shell>main{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;max-width:none;margin:0;width:100%}
+#shell>main>*{max-width:700px;margin-left:auto;margin-right:auto}
+header{background:var(--p);color:#fff;padding:calc(14px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-left,0px)) 14px;flex:none;display:flex;justify-content:space-between;align-items:center}
 header h1{margin:0;font-size:22px}
-main{padding:14px max(14px,env(safe-area-inset-left,0px));max-width:700px;margin:auto}
+main{padding:14px max(14px,env(safe-area-inset-left,0px)) 24px;max-width:700px;margin:auto}
 .card{background:var(--card);border-radius:16px;padding:14px;margin-bottom:12px;box-shadow:0 1px 4px #0001}
 .row{display:flex;align-items:center;gap:12px}
 .wrap{flex-wrap:wrap}
@@ -39,14 +42,14 @@ label{display:block;font-weight:700;margin:12px 0 6px}
 .badge{padding:4px 12px;border-radius:99px;font-weight:700;font-size:15px;white-space:nowrap}
 .b-red{background:var(--redl);color:var(--red)}.b-grn{background:var(--grnl);color:var(--grn)}.b-org{background:var(--orgl);color:var(--org)}
 .thumb{width:64px;height:64px;border-radius:12px;object-fit:cover;background:var(--pl);flex:none;display:flex;align-items:center;justify-content:center;font-size:28px}
-nav{position:fixed;bottom:0;left:0;right:0;background:#fff;display:flex;border-top:1px solid var(--b);padding-bottom:env(safe-area-inset-bottom,0px);z-index:6}
+nav{flex:none;background:#fff;display:flex;border-top:1px solid var(--b);padding-bottom:env(safe-area-inset-bottom,0px);z-index:6}
 nav button{flex:1;background:none;color:var(--m);border-radius:0;padding:10px 2px;font-size:13px;display:flex;flex-direction:column;align-items:center;gap:2px}
 nav button span{font-size:24px}
 nav button.on{color:var(--p)}
 nav button.plus{color:var(--p)}
 nav button.plus span{background:var(--p);color:#fff;width:54px;height:54px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-top:-26px;box-shadow:0 3px 8px #7c3aed66;font-size:32px}
-.ov{position:fixed;inset:0;padding-top:env(safe-area-inset-top,0px);background:var(--bg);z-index:20;overflow:auto;padding-bottom:30px}
-.ov header{top:0}
+.ov{position:fixed;inset:0;background:var(--bg);z-index:20;overflow:auto;padding-bottom:30px}
+.ov header{position:sticky;top:0}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
 .grid .card{margin:0;text-align:center}
 .grid b,.stat{font-size:21px;display:block;margin-top:2px}
@@ -66,6 +69,7 @@ nav button.plus span{background:var(--p);color:#fff;width:54px;height:54px;borde
 </style>
 </head>
 <body>
+<div id="shell">
 <header><h1 id="title">🧵 محل الخياطة</h1></header>
 <main id="main"></main>
 <nav>
@@ -75,6 +79,7 @@ nav button.plus span{background:var(--p);color:#fff;width:54px;height:54px;borde
  <button id="n-products" onclick="go('products')"><span>📦</span>المنتجات</button>
  <button id="n-more" onclick="go('more')"><span>☰</span>المزيد</button>
 </nav>
+</div>
 <div id="ovs"></div>
 
 <script>
