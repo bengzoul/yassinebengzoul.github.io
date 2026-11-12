@@ -16,7 +16,8 @@
 :root{--p:#7c3aed;--pl:#ede9fe;--bg:#f5f3ff;--card:#fff;--t:#1f2937;--m:#6b7280;--red:#dc2626;--redl:#fee2e2;--grn:#16a34a;--grnl:#dcfce7;--org:#d97706;--orgl:#fef3c7;--b:#e5e7eb}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 body{margin:0;background:var(--bg);font-family:system-ui,"Segoe UI",Tahoma,Arial,sans-serif;color:var(--t);font-size:18px;height:100%;overflow:hidden}
-html{height:100%;overflow:hidden}
+html{height:100%;overflow:hidden;background:#fff}
+@media (display-mode:standalone){html,body{height:100vh}#shell{inset:auto;top:0;left:0;right:0;height:100vh}}
 #shell{position:fixed;inset:0;display:flex;flex-direction:column;background:var(--bg)}
 #shell>main{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;max-width:none;margin:0;width:100%}
 #shell>main>*{max-width:700px;margin-left:auto;margin-right:auto}
