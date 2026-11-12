@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>محل الخياطة</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg">
+<meta name="theme-color" content="#7c3aed">
+<style>
+:root{--p:#7c3aed;--pl:#ede9fe;--bg:#f5f3ff;--card:#fff;--t:#1f2937;--m:#6b7280;--red:#dc2626;--redl:#fee2e2;--grn:#16a34a;--grnl:#dcfce7;--b:#e5e7eb}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;font-family:system-ui,"Segoe UI",Tahoma,Arial,sans-serif;background:var(--bg);color:var(--t);font-size:18px;padding-bottom:90px}
+header{background:var(--p);color:#fff;padding:14px 16px;position:sticky;top:0;z-index:5;display:flex;justify-content:space-between;align-items:center}
+header h1{margin:0;font-size:22px}
+main{padding:14px;max-width:700px;margin:auto}
+.card{background:var(--card);border-radius:16px;padding:14px;margin-bottom:12px;box-shadow:0 1px 4px #0001}
+.row{display:flex;align-items:center;gap:12px}
+.grow{flex:1;min-width:0}
+.name{font-weight:700;font-size:19px}
+.muted{color:var(--m);font-size:15px}
+button{font:inherit;border:0;border-radius:14px;padding:14px 18px;background:var(--p);color:#fff;font-weight:700;cursor:pointer}
+button.sec{background:var(--pl);color:var(--p)}
+button.red{background:var(--redl);color:var(--red)}
+button.grn{background:var(--grn)}
+button.big{width:100%;font-size:20px;padding:16px}
+button.sm{padding:8px 14px;font-size:16px;border-radius:10px}
+input,select,textarea{font:inherit;width:100%;padding:13px;border:2px solid var(--b);border-radius:12px;background:#fff;color:var(--t)}
+input:focus,select:focus,textarea:focus{outline:0;border-color:var(--p)}
+label{display:block;font-weight:700;margin:12px 0 6px}
+.badge{padding:4px 12px;border-radius:99px;font-weight:700;font-size:15px;white-space:nowrap}
+.b-red{background:var(--redl);color:var(--red)}.b-grn{background:var(--grnl);color:var(--grn)}
+.thumb{width:64px;height:64px;border-radius:12px;object-fit:cover;background:var(--pl);flex:none;display:flex;align-items:center;justify-content:center;font-size:28px}
+nav{position:fixed;bottom:0;left:0;right:0;background:#fff;display:flex;border-top:1px solid var(--b);padding-bottom:env(safe-area-inset-bottom);z-index:6}
+nav button{flex:1;background:none;color:var(--m);border-radius:0;padding:10px 4px;font-size:14px;display:flex;flex-direction:column;align-items:center;gap:2px}
+nav button span{font-size:26px}
+nav button.on{color:var(--p)}
+nav button.plus{color:#fff}
+nav button.plus span{background:var(--p);width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-top:-26px;box-shadow:0 3px 8px #7c3aed66;font-size:34px}
+.ov{position:fixed;inset:0;background:var(--bg);z-index:20;overflow:auto;padding-bottom:30px}
+.ov header{position:sticky}
+.stats{display:flex;gap:10px;margin-bottom:12px}
+.stats .card{flex:1;margin:0;text-align:center}
+.stats b{font-size:22px;display:block}
+.seg{display:flex;gap:8px}.seg button{flex:1;background:var(--pl);color:var(--p);padding:12px 4px;font-size:16px}.seg button.on{background:var(--p);color:#fff}
+.qty{display:flex;align-items:center;gap:8px}.qty button{width:40px;height:40px;padding:0;font-size:22px}.qty b{min-width:26px;text-align:center}
+.total{font-size:28px;font-weight:800;color:var(--p)}
+.photo{width:100%;height:220px;border-radius:16px;background:var(--pl);object-fit:cover;display:flex;align-items:center;justify-content:center;color:var(--p);font-size:18px;font-weight:700;text-align:center}
+.empty{text-align:center;color:var(--m);padding:30px 10px}
+.toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:#111;color:#fff;padding:12px 20px;border-radius:99px;z-index:50;font-size:16px}
+details summary{cursor:pointer;color:var(--p);font-weight:700}
+</style>
+</head>
+<body>
+<header><h1 id="title">🧵 محل الخياطة</h1><button class="sec sm" id="hbtn" onclick="openMenu()">⚙️</button></header>
+<main id="main"></main>
+<nav>
+ <button id="n-customers" onclick="go('customers')"><span>👥</span>الزبناء</button>
+ <button class="plus" onclick="openBill()"><span>＋</span>فاتورة</button>
+ <button id="n-products" onclick="go('products')"><span>📦</span>المنتجات</button>
+</nav>
+<div id="ovs"></div>
+
+<script>
+// ---------- التخزين (IndexedDB) ----------
+let S={products:[],customers:[],bills:[]};
+const DB='shopdb';
+function idb(){return new Promise((res,rej)=>{const r=indexedDB.open(DB,1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
+async function load(){try{const d=await idb();S=await new Promise(r=>{const q=d.transaction('kv').objectStore('kv').get('s');q.onsuccess=()=>r(q.result);q.onerror=()=>r(null)})||S}catch(e){try{S=JSON.parse(localStorage.getItem('s'))||S}catch(_){}}}
+async function save(){try{const d=await idb();d.transaction('kv','readwrite').objectStore('kv').put(S,'s')}catch(e){try{localStorage.setItem('s',JSON.stringify(S))}catch(_){toast('⚠️ الذاكرة ممتلئة')}}}
+if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();
+
+// ---------- أدوات ----------
+const $=s=>document.querySelector(s);
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money=n=>(Math.round((+n||0)*100)/100).toLocaleString('en')+' درهم';
+const num=v=>parseFloat(String(v).replace(',','.'))||0;
+const dstr=t=>new Date(t).toLocaleDateString('ar-MA-u-nu-latn',{day:'numeric',month:'short',year:'numeric'});
+function toast(m){const t=document.createElement('div');t.className='toast';t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),2200)}
+const owed=c=>S.bills.filter(b=>b.cid===c).reduce((a,b)=>a+b.total-b.paid,0);
+const thumb=p=>p.photo?`<img class="thumb" src="${p.photo}">`:`<div class="thumb">🧵</div>`;
+function compress(file){return new Promise(res=>{const r=new FileReader();r.onload=()=>{const i=new Image();i.onload=()=>{const m=640,k=Math.min(1,m/Math.max(i.width,i.height));const c=document.createElement('canvas');c.width=i.width*k;c.height=i.height*k;c.getContext('2d').drawImage(i,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',.72))};i.src=r.result};r.readAsDataURL(file)})}
+function overlay(title,body,onClose){const d=document.createElement('div');d.className='ov';d.innerHTML=`<header><h1>${title}</h1><button class="sec sm" data-x>✕ إغلاق</button></header><main>${body}</main>`;$('#ovs').appendChild(d);d.querySelector('[data-x]').onclick=()=>{d.remove();onClose&&onClose()};d.close=()=>d.querySelector('[data-x]').click();return d}
+
+// ---------- الصفحات ----------
+let tab='customers',q='';
+function go(t){tab=t;q='';render()}
+function render(){
+ document.querySelectorAll('nav button[id]').forEach(b=>b.classList.toggle('on',b.id==='n-'+tab));
+ $('#main').innerHTML=tab==='customers'?customersHTML():productsHTML();
+ const s=$('#q');if(s&&q){s.focus();s.setSelectionRange(q.length,q.length)}
+}
+function search(v){q=v;render()}
+
+function customersHTML(){
+ const total=S.customers.reduce((a,c)=>a+owed(c.id),0);
+ const l=S.customers.filter(c=>c.name.includes(q)).sort((a,b)=>owed(b.id)-owed(a.id)||a.name.localeCompare(b.name,'ar'));
+ return `<div class="stats"><div class="card"><span class="muted">عدد الزبناء</span><b>${S.customers.length}</b></div><div class="card"><span class="muted">مجموع الكريدي</span><b style="color:var(--red)">${money(total)}</b></div></div>
+ <div class="row" style="margin-bottom:12px"><input id="q" placeholder="🔍 ابحث عن زبون" value="${esc(q)}" oninput="search(this.value)"><button onclick="editCustomer()">＋</button></div>
+ ${l.map(c=>{const o=owed(c.id);return `<div class="card row" onclick="openCustomer('${c.id}')"><div class="thumb" style="border-radius:50%">👤</div><div class="grow"><div class="name">${esc(c.name)}</div><div class="muted">${c.phone?esc(c.phone):''}</div></div>${o>0.001?`<span class="badge b-red">كريدي ${money(o)}</span>`:`<span class="badge b-grn">خالص ✓</span>`}</div>`}).join('')||`<div class="empty">لا يوجد زبناء بعد.<br>اضغط ＋ لإضافة زبون أو اضغط "فاتورة" لبيع جديد.</div>`}`;
+}
+function productsHTML(){
+ const l=S.products.filter(p=>p.name.includes(q)).sort((a,b)=>a.name.localeCompare(b.name,'ar'));
+ return `<div class="row" style="margin-bottom:12px"><input id="q" placeholder="🔍 ابحث عن منتج" value="${esc(q)}" oninput="search(this.value)"><button onclick="editProduct()">＋ منتج</button></div>
+ ${l.map(p=>`<div class="card row" onclick="editProduct('${p.id}')">${thumb(p)}<div class="grow"><div class="name">${esc(p.name)}</div><div class="muted">${esc(p.details||'')}</div><div class="muted">جملة: ${money(p.cost)}</div></div><b style="color:var(--p);white-space:nowrap">${money(p.price)}</b></div>`).join('')||`<div class="empty">لا توجد منتجات بعد.<br>اضغط "＋ منتج" لإضافة أول منتج.</div>`}`;
+}
+
+// ---------- منتج ----------
+function editProduct(id,after){
+ const p=S.products.find(x=>x.id===id)||{id:uid(),name:'',details:'',price:'',cost:'',photo:''};const isNew=!S.products.includes(p);
+ const o=overlay(isNew?'منتج جديد':'تعديل المنتج',`
+ <div id="ph" class="photo">📷 اضغط لالتقاط صورة</div>
+ <input type="file" id="file" accept="image/*" capture="environment" hidden>
+ <div class="row" style="margin-top:8px"><button class="sec grow" id="cam">📷 التقاط صورة</button><button class="sec grow" id="gal">🖼️ من المعرض</button></div>
+ <label>اسم المنتج</label><input id="pn" value="${esc(p.name)}" placeholder="مثال: خيط أبيض">
+ <label>التفاصيل</label><textarea id="pd" rows="2" placeholder="اللون، الحجم، النوع...">${esc(p.details)}</textarea>
+ <div class="row"><div class="grow"><label>ثمن البيع</label><input id="pp" type="number" inputmode="decimal" value="${p.price}"></div><div class="grow"><label>ثمن الجملة (الشراء)</label><input id="pc" type="number" inputmode="decimal" value="${p.cost}"></div></div>
+ <div id="pf" class="card" style="margin-top:12px;text-align:center"></div>
+ <button class="big grn" id="sv">💾 حفظ</button>
+ ${isNew?'':'<button class="big red" id="dl" style="margin-top:10px">🗑️ حذف المنتج</button>'}`);
+ let photo=p.photo;
+ const ph=()=>{const e=o.querySelector('#ph');if(photo){e.outerHTML=`<img id="ph" class="photo" src="${photo}">`}};ph();
+ const prof=()=>{const v=num(o.querySelector('#pp').value)-num(o.querySelector('#pc').value);o.querySelector('#pf').innerHTML=`الربح في القطعة: <b style="color:${v<0?'var(--red)':'var(--grn)'}">${money(v)}</b>`};prof();
+ o.querySelector('#pp').oninput=o.querySelector('#pc').oninput=prof;
+ const f=o.querySelector('#file');
+ o.querySelector('#cam').onclick=()=>{f.setAttribute('capture','environment');f.click()};
+ o.querySelector('#gal').onclick=()=>{f.removeAttribute('capture');f.click()};
+ o.querySelector('#ph').onclick=()=>o.querySelector('#cam').click();
+ f.onchange=async()=>{if(f.files[0]){photo=await compress(f.files[0]);const e=o.querySelector('#ph');e.outerHTML=`<img id="ph" class="photo" src="${photo}">`}};
+ o.querySelector('#sv').onclick=async()=>{
+  const name=o.querySelector('#pn').value.trim();if(!name)return toast('اكتب اسم المنتج');
+  Object.assign(p,{name,details:o.querySelector('#pd').value.trim(),price:num(o.querySelector('#pp').value),cost:num(o.querySelector('#pc').value),photo});
+  if(isNew)S.products.push(p);await save();o.close();render();toast('✓ تم الحفظ');after&&after(p)};
+ const dl=o.querySelector('#dl');if(dl)dl.onclick=async()=>{if(confirm('حذف هذا المنتج؟')){S.products=S.products.filter(x=>x!==p);await save();o.close();render()}};
+}
+
+// ---------- زبون ----------
+function editCustomer(id,after){
+ const c=S.customers.find(x=>x.id===id)||{id:uid(),name:'',phone:''};const isNew=!S.customers.includes(c);
+ const o=overlay(isNew?'زبون جديد':'تعديل الزبون',`<label>اسم الزبون</label><input id="cn" value="${esc(c.name)}"><label>الهاتف (اختياري)</label><input id="cp" type="tel" value="${esc(c.phone)}"><br><button class="big grn" id="sv">💾 حفظ</button>${isNew?'':'<button class="big red" id="dl" style="margin-top:10px">🗑️ حذف الزبون</button>'}`);
+ o.querySelector('#sv').onclick=async()=>{const n=o.querySelector('#cn').value.trim();if(!n)return toast('اكتب الاسم');c.name=n;c.phone=o.querySelector('#cp').value.trim();if(isNew)S.customers.push(c);await save();o.close();render();after&&after(c)};
+ const dl=o.querySelector('#dl');if(dl)dl.onclick=async()=>{if(confirm('حذف الزبون وجميع فواتيره؟')){S.customers=S.customers.filter(x=>x!==c);S.bills=S.bills.filter(b=>b.cid!==c.id);await save();document.querySelectorAll('.ov').forEach(e=>e.remove());render()}};
+}
+function openCustomer(id){
+ const c=S.customers.find(x=>x.id===id);
+ const o=overlay(esc(c.name),'',render);
+ const draw=()=>{
+  const bills=S.bills.filter(b=>b.cid===id).sort((a,b)=>b.date-a.date),o_=owed(id),all=bills.reduce((a,b)=>a+b.total,0);
+  o.querySelector('main').innerHTML=`
+  <div class="stats"><div class="card"><span class="muted">مجموع المشتريات</span><b>${money(all)}</b></div><div class="card" style="background:${o_>0.001?'var(--redl)':'var(--grnl)'}"><span class="muted">${o_>0.001?'الكريدي (الباقي)':'الحالة'}</span><b style="color:${o_>0.001?'var(--red)':'var(--grn)'}">${o_>0.001?money(o_):'خالص ✓'}</b></div></div>
+  <div class="row"><button class="grow" id="nb">＋ فاتورة جديدة</button>${o_>0.001?'<button class="grow grn" id="pay">💵 دفع</button>':''}<button class="sec" id="ed">✏️</button></div>
+  <h3>الفواتير</h3>
+  ${bills.map(b=>{const r=b.total-b.paid;return `<div class="card"><div class="row"><div class="grow"><b>${dstr(b.date)}</b></div>${r>0.001?`<span class="badge b-red">باقي ${money(r)}</span>`:'<span class="badge b-grn">مدفوعة ✓</span>'}</div>
+  <div class="muted" style="margin:8px 0">${b.items.map(i=>`${esc(i.name)} × ${i.qty} = ${money(i.price*i.qty)}`).join('<br>')}</div>
+  <div class="row"><b class="grow">المجموع: ${money(b.total)}</b>${b.paid>0&&r>0.001?`<span class="muted">دفع ${money(b.paid)}</span>`:''}<button class="red sm" data-d="${b.id}">حذف</button></div></div>`}).join('')||'<div class="empty">لا توجد فواتير</div>'}`;
+  o.querySelector('#nb').onclick=()=>openBill(id,draw);
+  o.querySelector('#ed').onclick=()=>editCustomer(id,()=>{o.close();openCustomer(id)});
+  const pay=o.querySelector('#pay');if(pay)pay.onclick=()=>payDialog(id,draw);
+  o.querySelectorAll('[data-d]').forEach(b=>b.onclick=async()=>{if(confirm('حذف هذه الفاتورة؟')){S.bills=S.bills.filter(x=>x.id!==b.dataset.d);await save();draw()}});
+ };draw();
+}
+function payDialog(cid,after){
+ const o_=owed(cid);
+ const o=overlay('تسجيل دفعة',`<div class="card" style="text-align:center">الكريدي الحالي<div class="total" style="color:var(--red)">${money(o_)}</div></div><label>المبلغ المدفوع</label><input id="amt" type="number" inputmode="decimal" value="${o_}"><br><button class="big grn" id="sv">✓ تأكيد الدفع</button>`);
+ o.querySelector('#sv').onclick=async()=>{let a=Math.min(num(o.querySelector('#amt').value),o_);if(a<=0)return toast('اكتب المبلغ');
+  for(const b of S.bills.filter(b=>b.cid===cid&&b.total>b.paid).sort((x,y)=>x.date-y.date)){const t=Math.min(a,b.total-b.paid);b.paid+=t;a-=t;if(a<=0)break}
+  await save();o.close();after&&after();toast('✓ تم تسجيل الدفعة')};
+}
+
+// ---------- فاتورة جديدة ----------
+function openBill(cid,after){
+ let cart=[],pay='full',cust=cid||'';
+ const o=overlay('فاتورة جديدة','',()=>{render()});
+ const draw=()=>{
+  const total=cart.reduce((a,i)=>a+i.price*i.qty,0);
+  const sq=(o.querySelector('#ps')||{}).value||'';
+  o.querySelector('main').innerHTML=`
+  <label style="margin-top:0">الزبون</label>
+  <div class="row"><select id="cs" class="grow"><option value="">— اختر الزبون —</option>${S.customers.slice().sort((a,b)=>a.name.localeCompare(b.name,'ar')).map(c=>`<option value="${c.id}" ${c.id===cust?'selected':''}>${esc(c.name)}${owed(c.id)>0.001?' (كريدي '+money(owed(c.id))+')':''}</option>`).join('')}</select><button class="sec" id="nc">＋ جديد</button></div>
+  <label>المنتجات</label>
+  <div class="row"><input id="ps" placeholder="🔍 ابحث عن منتج لإضافته" value="${esc(sq)}"><button class="sec" id="np">＋</button></div>
+  <div id="pl" style="margin-top:8px">${sq?S.products.filter(p=>p.name.includes(sq)).slice(0,8).map(p=>`<div class="card row" data-a="${p.id}">${thumb(p)}<div class="grow name">${esc(p.name)}</div><b>${money(p.price)}</b></div>`).join('')||'<div class="empty">لا نتيجة</div>':''}</div>
+  ${cart.length?`<h3>السلة</h3>`+cart.map((i,x)=>`<div class="card"><div class="row"><div class="grow name">${esc(i.name)}</div><button class="red sm" data-r="${x}">✕</button></div>
+   <div class="row" style="margin-top:8px"><div class="qty"><button data-m="${x}">−</button><b>${i.qty}</b><button data-p="${x}">＋</button></div><span class="muted">×</span><input data-pr="${x}" type="number" inputmode="decimal" value="${i.price}" style="width:110px"><b class="grow" style="text-align:left">${money(i.price*i.qty)}</b></div></div>`).join(''):`<div class="empty">السلة فارغة — ابحث عن منتج وأضفه</div>`}
+  <div class="card" style="text-align:center"><span class="muted">المجموع</span><div class="total">${money(total)}</div></div>
+  <label>الدفع</label>
+  <div class="seg"><button data-pay="full" class="${pay==='full'?'on':''}">✓ مدفوع</button><button data-pay="credit" class="${pay==='credit'?'on':''}">كريدي</button><button data-pay="part" class="${pay==='part'?'on':''}">دفع جزء</button></div>
+  ${pay==='part'?`<label>المبلغ المدفوع الآن</label><input id="pa" type="number" inputmode="decimal" value="${o._pa||''}">`:''}
+  <br><button class="big grn" id="sv">💾 حفظ الفاتورة</button>`;
+  const ps=o.querySelector('#ps');
+  if(sq){ps.focus();ps.setSelectionRange(sq.length,sq.length)}
+  o.querySelector('#cs').onchange=e=>cust=e.target.value;
+  o.querySelector('#nc').onclick=()=>editCustomer(null,c=>{cust=c.id;draw()});
+  o.querySelector('#np').onclick=()=>editProduct(null,p=>{add(p)});
+  ps.oninput=()=>{o._pa=(o.querySelector('#pa')||{}).value;draw()};
+  o.querySelectorAll('[data-a]').forEach(e=>e.onclick=()=>{add(S.products.find(p=>p.id===e.dataset.a));o.querySelector('#ps').value='';draw()});
+  o.querySelectorAll('[data-r]').forEach(e=>e.onclick=()=>{cart.splice(+e.dataset.r,1);draw()});
+  o.querySelectorAll('[data-m]').forEach(e=>e.onclick=()=>{const i=cart[+e.dataset.m];if(i.qty>1)i.qty--;draw()});
+  o.querySelectorAll('[data-p]').forEach(e=>e.onclick=()=>{cart[+e.dataset.p].qty++;draw()});
+  o.querySelectorAll('[data-pr]').forEach(e=>e.onchange=()=>{cart[+e.dataset.pr].price=num(e.value);draw()});
+  o.querySelectorAll('[data-pay]').forEach(e=>e.onclick=()=>{pay=e.dataset.pay;draw()});
+  const pa=o.querySelector('#pa');if(pa)pa.oninput=()=>o._pa=pa.value;
+  o.querySelector('#sv').onclick=async()=>{
+   if(!cust)return toast('اختر الزبون أولا');if(!cart.length)return toast('أضف منتجا');
+   const paid=pay==='full'?total:pay==='credit'?0:Math.min(num((o.querySelector('#pa')||{}).value),total);
+   S.bills.push({id:uid(),cid:cust,date:Date.now(),items:cart,total,paid});await save();o.close();after&&after();toast('✓ تم حفظ الفاتورة')};
+ };
+ const add=p=>{const i=cart.find(x=>x.pid===p.id);if(i)i.qty++;else cart.push({pid:p.id,name:p.name,price:p.price,qty:1});draw()};
+ draw();
+}
+
+// ---------- القائمة / نسخة احتياطية ----------
+function openMenu(){
+ const o=overlay('الإعدادات',`<div class="card"><b>نسخة احتياطية</b><p class="muted">احفظ نسخة من كل البيانات (الزبناء، المنتجات، الصور) لتجنب ضياعها.</p><button class="big sec" id="ex">⬇️ حفظ نسخة احتياطية</button><br><br><button class="big sec" id="im">⬆️ استرجاع نسخة</button><input type="file" id="f" accept=".json" hidden></div>`);
+ o.querySelector('#ex').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(S)],{type:'application/json'}));a.download='sauvegarde-'+new Date().toISOString().slice(0,10)+'.json';a.click()};
+ const f=o.querySelector('#f');o.querySelector('#im').onclick=()=>f.click();
+ f.onchange=async()=>{try{const d=JSON.parse(await f.files[0].text());if(!d.products||!d.customers||!d.bills)throw 0;if(!confirm('سيتم استبدال البيانات الحالية. متابعة؟'))return;S=d;await save();o.close();render();toast('✓ تم الاسترجاع')}catch(e){toast('ملف غير صالح')}};
+}
+
+load().then(render);
+if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
+</body>
+</html>
